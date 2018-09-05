@@ -4,6 +4,7 @@
 
 #include <GL/glut.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 typedef struct vertex
 {
@@ -11,6 +12,9 @@ typedef struct vertex
 	int y;
 	struct vertex *next;
 } vertex;
+
+void push(vertex *startVertex, vertex input);
+void freeVerticesMemory(vertex *startVertex);
 
 // These are defined in a global scope
 
@@ -33,7 +37,9 @@ const float WORLD_COORDINATE_MAX_Y = 800.0;
 
 // Global variables to store vertex information
 
-vertex * startvertex;
+vertex *startVertex;
+
+// Functions
 
 void myglutInit( int argc, char** argv )
 {
@@ -67,12 +73,6 @@ void myInit(void)
 
 void display( void )
 {
-	/* define a point data type */
-
-    //typedef GLfloat point[2];     
-
-    // point p; 							/* A point in 2-D space */
-
     glClear(GL_COLOR_BUFFER_BIT);  		/*clear the window */
 
     if (!COLORS_DEFINED) 
@@ -83,18 +83,6 @@ void display( void )
     }
 
     glColor3ub( red, green, blue ); 
-
-    /* define point */
-
-    //p[0] = 100; 
-    //p[1] = 100;
-   
-    /* plot new point */
-    /*
-    glBegin(GL_POINTS);
-    	glVertex2fv(p); 
-    glEnd();
-    */
     glFlush(); 						/* clear buffers */
 }
 
@@ -146,18 +134,18 @@ void mouse( int button, int state, int x, int y )
 	
 	if ( button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN )
     {
-    	printf ("%d   %d\n", x, sy);
-        drawBox( x, y );
+    	//printf ("%d   %d\n", x, sy);
+        drawBox( x, sy );
 		
 		//Add point to list of vertices
 		vertex input = {x, sy, NULL};
-		pushvertex(startvertex, input);
+		push(startVertex, input);
     }
 
   	if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN )
     {
         printf ("%d   %d\n", x, sy);
-        eraseBox( x, y );
+        eraseBox( x, sy );
     }
   
   	if ( button == GLUT_MIDDLE_BUTTON && state == GLUT_DOWN )
@@ -170,41 +158,68 @@ void mouse( int button, int state, int x, int y )
 
 void keyboard( unsigned char key, int x, int y )
 { 
-  if ( key == 'q' || key == 'Q') exit(0);
+	if ( key == 'q' || key == 'Q') 
+	{
+		freeVerticesMemory(startVertex);
+		exit(0);
+	}
 }
 
-void pushvertex(vertex **startvertex, vertex input)
+// Add a vertex to end of vertices
+void push(vertex *startVertex, vertex input)
 {
 	//Find end of the linked list
-	vertex *current = startvertex;
+	vertex *current = startVertex;
 	while(current -> next != NULL)
 	{
 		current = current -> next;
 	}
-
 	//Add input to end of link list
-	vertex newvertex;
-	current -> next = newvertex;
-	current -> next -> x = input.x;
-	current -> next -> y = input.y;
-	current -> next -> next = NULL;
+	
+	vertex *newVertex = (vertex*)malloc(sizeof(vertex));
+	newVertex -> x = input.x;
+	newVertex -> y = input.y;
+	newVertex -> next = NULL;
+	current -> next = newVertex;
+
+	current = current -> next;
+	//Print out inputed vertex
+	printf("( %i , %i ) \n", current -> x, current -> y);
 
 	//Print out updated list of vertices
-	current = startvertex -> next;
-	do
+	/*
+	current = startVertex;
+	while (current -> next != NULL)
 	{
-		printf("( %i , %i ) \n", current -> x, current ->y);
-		if(current -> next != NULL)
-		{
-			current = current -> next;
-		}
-	} while (current -> next != NULL)
+		printf("( %i , %i ) \n", current -> next -> x, current -> next -> y);
+		current = current -> next;
+	}
+	*/
+}
+
+// Delete an vertex from verticies
+
+// Insert a vertex into verticies
+
+// Free up all allocated memory by list of verticies
+void freeVerticesMemory(vertex *startVertex)
+{
+	vertex *tempVertex = startVertex;
+
+	while(startVertex -> next != NULL)
+	{
+		tempVertex = startVertex;				//Set temp node to current node
+
+		startVertex = startVertex -> next;		//Move pointing node to next node
+
+		free(tempVertex);						//Free up temp node
+	}
 }
 
 int main(int argc, char** argv)
 {
 	vertex buffer = {0, 0, NULL};
-	startvertex = buffer;
+	startVertex = &buffer;
 
     myglutInit(argc,argv); 		/* Set up Window */
     myInit(); 					/* set attributes */
