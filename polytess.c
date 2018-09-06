@@ -6,12 +6,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifndef max
+#define max(a,b)            (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef min
+#define min(a,b)            (((a) < (b)) ? (a) : (b))
+#endif
+
 typedef struct vertex
 {
 	int x;
 	int y;
 	struct vertex *next;
 } vertex;
+
+typedef struct line
+{
+    float slope;
+    float yIntercept;
+} line;
 
 void push(vertex *startVertex, vertex input);
 void freeVerticesMemory(vertex *startVertex);
@@ -87,7 +101,7 @@ void display( void )
 }
 
 
-void drawBox( int x, int y )
+void drawVertex( int x, int y )
 {
     typedef GLfloat point[2];     
     point p;
@@ -103,6 +117,21 @@ void drawBox( int x, int y )
         glFlush();
 }
 
+void drawOutline( void )
+{
+    glClear ( GL_COLOR_BUFFER_BIT );
+
+    glBegin ( GL_LINE_LOOP );
+	    vertex *current = startVertex;
+    	while (current -> next != NULL)
+	    {
+            glVertex2i ( current -> next -> x, current -> next -> y );
+            current = current -> next;
+	    }
+    glEnd();
+    
+    glFlush();
+}
 
 void eraseBox( int x, int y )
 {
@@ -135,7 +164,7 @@ void mouse( int button, int state, int x, int y )
 	if ( button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN )
     {
     	//printf ("%d   %d\n", x, sy);
-        drawBox( x, sy );
+        drawVertex( x, sy );
 		
 		//Add point to list of vertices
 		vertex input = {x, sy, NULL};
@@ -144,8 +173,11 @@ void mouse( int button, int state, int x, int y )
 
   	if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN )
     {
-        printf ("%d   %d\n", x, sy);
-        eraseBox( x, sy );
+        //printf ("%d   %d\n", x, sy);
+        //eraseBox( x, sy );
+
+        //Display outline of the polygon
+        drawOutline();
     }
   
   	if ( button == GLUT_MIDDLE_BUTTON && state == GLUT_DOWN )
@@ -165,10 +197,45 @@ void keyboard( unsigned char key, int x, int y )
 	}
 }
 
+void checkIntersection(vertex input)
+{
+    //Find end of linked list vertices
+    vertex *current = startVertex;
+    while(current -> next != NULL)
+    {
+        current = current -> next;
+    }
+
+    //Calculate line for last two vertices
+    line newLine; 
+    newLine.slope = (input.y - current -> y) / (input.x - current -> x);
+    newLine.yIntercept = (newLine.slope * -current.x) + current.y;
+
+    //Check new line with all lines for intersection
+    current = startVertex -> next;
+    line oldLine;
+    while(current -> next != NULL)
+    {
+        //Calculate line for current and next vectices
+        oldLine.slope = (current -> next -> y - current -> y) / (current -> next -> x - current -> x);
+        oldLine.yIntercept = (oldLine.slope * -current -> x) + current -> y;
+
+        //Check intersection
+        float x = (oldLine.yIntercept - newLine.yIntercept) / (newLine.slope - oldLine.slope);
+        float y = (newLine.slope * x) + newLine.yIntercept;
+        
+        //If x is greater than min of two line points and less than max of two line points
+        //Same for y; if it is then intersection
+
+        //Move to nect vertex and repeat
+        current = current -> next;
+    }
+}
+
 // Add a vertex to end of vertices
 void push(vertex *startVertex, vertex input)
 {
-	//Find end of the linked list
+	//Find end of the linked list vertices
 	vertex *current = startVertex;
 	while(current -> next != NULL)
 	{
@@ -197,22 +264,34 @@ void push(vertex *startVertex, vertex input)
 	*/
 }
 
-// Delete an vertex from verticies
+// Insert an vertex from verticies
+void insert(vertex *firstVertex, vertex *secondVertex, vertex input)
+{
+    vertex *newVertex = (vertex*)malloc(sizeof(vertex));    //Create new vertex from input
+    newVertex -> x = input.x;
+    newVertex -> y = input.y;
 
-// Insert a vertex into verticies
+    newVertex -> next = secondVertex;       //Connect new vertex to second vertex
+
+    firstVertex -> next = newVertex;        //Connect first vertex to new vertex
+}
+
+// Delete a vertex into verticies
+
 
 // Free up all allocated memory by list of verticies
 void freeVerticesMemory(vertex *startVertex)
 {
-	vertex *tempVertex = startVertex;
-
+	vertex *tempVertex = startVertex -> next;
+    
 	while(startVertex -> next != NULL)
 	{
-		tempVertex = startVertex;				//Set temp node to current node
+		tempVertex = startVertex -> next;				//Set temp node to current node
 
 		startVertex = startVertex -> next;		//Move pointing node to next node
 
 		free(tempVertex);						//Free up temp node
+        tempVertex = NULL;
 	}
 }
 
