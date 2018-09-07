@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+typedef enum {false, true} bool;
+
 #ifndef max
 #define max(a,b)            (((a) > (b)) ? (a) : (b))
 #endif
@@ -29,6 +31,7 @@ typedef struct line
 
 void push(vertex *startVertex, vertex input);
 void freeVerticesMemory(vertex *startVertex);
+bool checkIntersection(vertex input);
 
 // These are defined in a global scope
 
@@ -168,7 +171,14 @@ void mouse( int button, int state, int x, int y )
 		
 		//Add point to list of vertices
 		vertex input = {x, sy, NULL};
-		push(startVertex, input);
+		if(!checkIntersection(input))
+		{
+			push(startVertex, input);
+		}
+		else
+		{
+			printf("Intersection : Point Not Accepted");
+		}
     }
 
   	if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN )
@@ -197,19 +207,27 @@ void keyboard( unsigned char key, int x, int y )
 	}
 }
 
-void checkIntersection(vertex input)
+bool checkIntersection(vertex input)
 {
+	int count = 0;	//Count number of vertices
     //Find end of linked list vertices
     vertex *current = startVertex;
     while(current -> next != NULL)
     {
         current = current -> next;
+		count++;
     }
+	
+	//Check if enough points entered
+	if(count < 3)
+	{
+		return false;
+	}
 
     //Calculate line for last two vertices
     line newLine; 
     newLine.slope = (input.y - current -> y) / (input.x - current -> x);
-    newLine.yIntercept = (newLine.slope * -current.x) + current.y;
+    newLine.yIntercept = (newLine.slope * -current -> x) + current -> y;
 
     //Check new line with all lines for intersection
     current = startVertex -> next;
@@ -226,10 +244,19 @@ void checkIntersection(vertex input)
         
         //If x is greater than min of two line points and less than max of two line points
         //Same for y; if it is then intersection
+        if(x > min(current -> x , current -> next -> x) && x < max(current -> x , current -> next -> x))
+		{
+			if(y > min(current -> y, current -> next -> y) && y < max(current -> y, current -> next -> y))
+			{
+				return true;
+				break;
+			}
+		}
 
         //Move to nect vertex and repeat
         current = current -> next;
     }
+	return false;
 }
 
 // Add a vertex to end of vertices
