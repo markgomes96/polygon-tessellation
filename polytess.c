@@ -178,13 +178,11 @@ void mouse( int button, int state, int x, int y )
 	
 	if ( button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN )
     {
-    	//printf ("%d   %d\n", x, sy);
-        drawPoint( x, sy );
-		
 		//Add point to list of vertices
 		point input = {x, sy, NULL};
 
-		if(count < 3)
+        bool intersected = false;
+		if(count > 2)
 		{
 			//Find end of linked list vertices
     		point *current = startPoint;
@@ -194,34 +192,32 @@ void mouse( int button, int state, int x, int y )
     		}
 			point *lastPoint = current;
 			current = startPoint -> next;
-			bool intersected = false;
 
 			while(current -> next != NULL)			//Check if new point causes intersection
 			{
 				if(checkIntersection(*current, *(current -> next), *lastPoint, input))
 				{
 					intersected = true;
-					break
+                    printf("Intersection Detected : Point Not Accepted\n");
+					break;
 				}
 
 				current = current -> next;		//Move to next point and repeat
 			}
-		}
 
-		if(count < 3)
-		{
-			push(startPoint, input);
-			count++;
+            if(!intersected)
+            {
+                push(startPoint, input);
+                count++;
+                drawPoint( x, sy );
+            }
 		}
-		else if(!intersected)
-		{
-			push(startPoint, input);
-			count++;
-		}
-		else
-		{
-			printf("Intersection Detected : Point Not Accepted");
-		}
+        else
+        {
+            push(startPoint, input);
+            count++;
+            drawPoint( x, sy );
+        }
     }
 
   	if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN )
