@@ -23,20 +23,20 @@ typedef struct point
 	struct point *next;
 } point;
 
-/*
-typedef struct line
-{
-    float slope;
-    float yIntercept;
-} line;
-*/
-
 typedef struct vector
 {
 	int x;
 	int y;
 	int z;
 } vector;
+
+typedef struct triangle
+{
+	point v1;
+	point v2;
+	point v3;
+	float area;
+}
 
 void push(point *startPoint, point input);
 void freeVerticesMemory(point *startPoint);
@@ -66,7 +66,7 @@ const float WORLD_COORDINATE_MAX_Y = 800.0;
 // Global variables to store point information
 
 point *startPoint;
-int count = 0;
+int verticesCount = 0;
 
 // Functions
 
@@ -115,7 +115,6 @@ void display( void )
     glFlush(); 						/* clear buffers */
 }
 
-
 void drawPoint( int x, int y )
 {
     typedef GLfloat point[2];     
@@ -126,10 +125,10 @@ void drawPoint( int x, int y )
     p[0] = x;
     p[1] = y;  
     
-        glBegin(GL_POINTS);
-            glVertex2fv(p); 
-        glEnd();
-        glFlush();
+    glBegin(GL_POINTS);
+    	glVertex2fv(p); 
+    glEnd();
+    glFlush();
 }
 
 void drawOutline( void )
@@ -137,40 +136,46 @@ void drawOutline( void )
     glClear ( GL_COLOR_BUFFER_BIT );
 
     glBegin ( GL_LINE_LOOP );
-	    point *current = startPoint;
+	    point *current = startPoint -> next;
     	while (current -> next != NULL)
 	    {
-            glVertex2i ( current -> next -> x, current -> next -> y );
+            glVertex2i ( current -> x, current -> y );
             current = current -> next;
 	    }
+		glVertex2i ( current -> x, current -> y);
     glEnd();
-    
+
     glFlush();
 }
 
-void eraseBox( int x, int y )
+void drawPolygon( void )
 {
-    typedef GLfloat point[2];     
-    point p;
-
-    glColor3f( 1.0, 1.0, 1.0 );
-
-    p[0] = x;
-    p[1] = y;  
-
-    glBegin(GL_POINTS);
-      glVertex2fv(p); 
-    glEnd();
-    glFlush();
+	glClear ( GL_COLOR_BUFFER_BIT );
+	
+	glBegin ( GL_POLYGON );
+		point *current = startPoint -> next;
+		while (current -> next != NULL)
+		{
+			glVertex2i ( current ->  x, current -> y );
+			current = current -> next;
+		}
+		glVertex2i ( current -> x, current -> y);
+	glEnd();
+	
+	glFlush();
 }
 
-
-void clearBox()
+void drawPolygonTriangle(triangle t)
 {
-       glClear(GL_COLOR_BUFFER_BIT); 
-       glFlush();
+	glClear ( GL_COLOR_BUFFER_BIT );
+	
+	glBegin ( GL_POLYGON );
+		glVertex2i ( t.v1.x, t.v1.y );
+		//Would that just draw last triangle I sent, mabye use linked list of triangles
+	glEnd();
+	
+	glFlush();
 }
-
 
 void mouse( int button, int state, int x, int y )
 { 
@@ -182,7 +187,7 @@ void mouse( int button, int state, int x, int y )
 		point input = {x, sy, NULL};
 
         bool intersected = false;
-		if(count > 2)
+		if(verticesCount > 2)
 		{
 			//Find end of linked list vertices
     		point *current = startPoint;
@@ -208,107 +213,85 @@ void mouse( int button, int state, int x, int y )
             if(!intersected)
             {
                 push(startPoint, input);
-                count++;
+                verticesCount++;
                 drawPoint( x, sy );
             }
 		}
         else
         {
             push(startPoint, input);
-            count++;
+            verticesCount++;
             drawPoint( x, sy );
         }
     }
 
   	if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN )
     {
-        //printf ("%d   %d\n", x, sy);
-        //eraseBox( x, sy );
-
-        //Display outvector of the polygon
-        drawOutline();
-    }
-  
-  	if ( button == GLUT_MIDDLE_BUTTON && state == GLUT_DOWN )
-    {
-        printf ("%d   %d\n", x, sy);
-        clearBox();
+        //Display outline of the polygon
+        if(verticesCount > 1)
+        	drawOutline();
     }
 }
 
 
 void keyboard( unsigned char key, int x, int y )
 { 
+	// Draw polygon with no tesselation
+	if ( key == 'f' || key == 'F')
+	{
+		if(verticesCount > 2)
+			drawPolygon();
+		else
+			printf("Please input more points\n");
+	}
+	
+	// List out triangles used in tesselation
+	if ( key == 't' || key == 'T')
+	{
+		if(verticesCount > 2)
+			tesselatePolygon();
+		else
+			printf("Please input more points\n");
+	}
+
+	// Draw polygon using tesselation
+	if ( key == 'p' || key == 'P')
+	{
+		
+	}
+
+	// Return to initial polygon outline
+	if ( key == 'i' || key == 'I')
+	{
+		if(verticesCount > 2)
+			drawOutline();
+		else
+			printf("Please input more points\n");
+	}
+
+	// Exit the program
 	if ( key == 'q' || key == 'Q') 
 	{
+		printf("Goodbye...\n");
 		freeVerticesMemory(startPoint);
 		exit(0);
 	}
 }
 
-/*
-bool checkIntersection(point input)
+void tesselatePolygon( void )
 {
-	int count = 0;	//Count number of vertices
-    //Find end of linked list vertices
-    point *current = startPoint;
-    while(current -> next != NULL)
-    {
-        current = current -> next;
-		count++;
-    }
 	
-	//Check if enough points entered
-	if(count < 3)
-	{
-		return false;
-	}
-
-    //Calculate vector for last two vertices
-    vector newLine; 
-    newLine.slope = (input.y - current -> y) / (input.x - current -> x);
-    newLine.yIntercept = (newLine.slope * -current -> x) + current -> y;
-
-    //Check new vector with all vectors for intersection
-    current = startPoint -> next;
-    vector oldLine;
-    while(current -> next != NULL)
-    {
-        //Calculate vector for current and next vectices
-        oldLine.slope = (current -> next -> y - current -> y) / (current -> next -> x - current -> x);
-        oldLine.yIntercept = (oldLine.slope * -current -> x) + current -> y;
-
-        //Check intersection
-        float x = (oldLine.yIntercept - newLine.yIntercept) / (newLine.slope - oldLine.slope);
-        float y = (newLine.slope * x) + newLine.yIntercept;
-        
-        //If x is greater than min of two vector points and less than max of two vector points
-        //Same for y; if it is then intersection
-        if(x > min(current -> x , current -> next -> x) && x < max(current -> x , current -> next -> x))
-		{
-			if(y > min(current -> y, current -> next -> y) && y < max(current -> y, current -> next -> y))
-			{
-				return true;
-				break;
-			}
-		}
-
-        //Move to nect point and repeat
-        current = current -> next;
-    }
-	return false;
 }
-*/
 
 bool checkIntersection(point p1, point p2, point p3, point p4)
 {
-	float a0Det = 0;
-	float a1Det = 0;
 	float ADet = 0;
-	float uA = 0;
-	float uB = 0;
+	float tADet = 0;
+	float tBDet = 0;
+	float tA = 0;
+	float tB = 0;
 
-	ADet = ( (p2.x - p1.x) * (-(p4.y - p3.y)) ) - ( (p2.y - p1.y) * (-(p4.x - p3.x)) );
+	ADet = (float)( (p2.x - p1.x) * (-(p4.y - p3.y)) ) - ( (p2.y - p1.y) * (-(p4.x - p3.x)) );
 	if(ADet == 0)		//Check if lines are parallel
 	{
 		float slope = (p2.y - p1.y) / (p2.x - p1.x);
@@ -325,13 +308,13 @@ bool checkIntersection(point p1, point p2, point p3, point p4)
 		}
 	}
 
-	a0Det = ( (p3.x - p1.x) * (-(p4.y - p3.y)) ) - ( (p3.y - p1.y) * (-(p4.x - p3.x)) );
-	a1Det = ( (p2.x - p1.x) * (p3.y - p1.y) ) - ( (p2.y - p1.y) * (p3.x - p1.x) );
+	tADet = (float)( (p3.x - p1.x) * (-(p4.y - p3.y)) ) - ( (p3.y - p1.y) * (-(p4.x - p3.x)) );
+	tBDet = (float)( (p2.x - p1.x) * (p3.y - p1.y) ) - ( (p2.y - p1.y) * (p3.x - p1.x) );
 
-	uA = a0Det / ADet;
-	uB = a1Det / ADet;
+	tA = (float)tADet / (float)ADet;
+	tB = (float)tBDet / (float)ADet;
 
-	if( (uA >= 0 && uA <= 1) && (uB >= 0 && uA <= 1) )
+	if( (tA > 0 && tA < 1) && (tB > 0 && tB < 1) )
 	{
 		return true;
 	}
