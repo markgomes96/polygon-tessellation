@@ -41,6 +41,7 @@ typedef struct triangle
 void push(point *startPoint, point input);
 void freeVerticesMemory(point *startPoint);
 bool checkIntersection(point p1, point p2, point p3, point p4);
+void tesselatePolygon(bool drawFlag);
 int dotProuct(vector v1, vector v2);
 vector crossProduct(vector v1, vector v2);
 
@@ -165,17 +166,6 @@ void drawPolygon( void )
 	glFlush();
 }
 
-void drawPolygonTriangle(triangle t)
-{
-	glBegin ( GL_POLYGON );
-		glVertex2i ( t.v1.x, t.v1.y );
-		glVertex2i ( t.v2.x, t.v2.y );
-        glVertex2i ( t.v3.x, t.v2.y );
-	glEnd();
-	
-	glFlush();
-}
-
 void mouse( int button, int state, int x, int y )
 { 
 	int sy = WORLD_COORDINATE_MAX_Y - y;
@@ -248,7 +238,7 @@ void keyboard( unsigned char key, int x, int y )
 	if ( key == 't' || key == 'T')
 	{
 		if(verticesCount > 2)
-			tesselatePolygon();
+			tesselatePolygon(false);
 		else
 			printf("Please input more points\n");
 	}
@@ -256,7 +246,10 @@ void keyboard( unsigned char key, int x, int y )
 	// Draw polygon using tesselation
 	if ( key == 'p' || key == 'P')
 	{
-		
+		if(verticesCount > 2)
+			tesselatePolygon(true);
+		else
+			printf("Please input more points\n");
 	}
 
 	// Return to initial polygon outline
@@ -277,7 +270,7 @@ void keyboard( unsigned char key, int x, int y )
 	}
 }
 
-void tesselatePolygon( void )
+void tesselatePolygon(bool drawFlag)
 {
 	triangle triangleList[verticesCount-1];
     int ti = 0;
@@ -285,8 +278,8 @@ void tesselatePolygon( void )
     int pi = 0;
 
     //Move all points over to an array
-    points pointList[verticesCount];
-    point *current = startPoint;
+    point pointList[verticesCount];
+    point *current = startPoint -> next;
     int index = 0;
     while(current -> next != NULL)
     {
@@ -294,55 +287,119 @@ void tesselatePolygon( void )
         index++;
         current = current -> next;
     }
+	pointList[index] = *current;
+
+	//print out all points in pointlist
+	printf("Vertices count : %d \n", vertCount);
+	for(int i = 0; i < vertCount; i++)
+	{
+		printf("%d : (%d, %d) \n", i, pointList[i].x, pointList[i].y);
+	}
 
     //Earclipping algorithm
-    point fp = pointList[pi]; 
-    point mp = pointList[pi+1]; 
-    point ep = pointList[pi+2];
-    vector v1, v2, cp;
+    point fp, mp, ep;				//first point, midpoint, endpoint
+    vector v1, v2, cp;				//vectors to calculate the crossproduct
     while(vertCount > 3)
     {
+		//Get next 3 points based on point index
+		fp = pointList[pi];
+		mp = pointList[pi+1];
+		ep = pointList[pi+2];
+
         //check the cross product to see if points go counter clockwise
-        v1 = (vector){.x = (pointList[0].x - pointList[1].x), .y = (pointList[0].y - pointList[1].y), .z = 0};
-        v2 = (vector){.x = (pointList[2].x - pointList[1].x), .y = (pointList[2].y - pointList[1].y), .z = 0};
+        v1 = (vector){.x = (fp.x - mp.x), .y = (fp.y - mp.y), .z = 0};
+        v2 = (vector){.x = (ep.x - mp.x), .y = (ep.y - mp.y), .z = 0};
         cp = crossProduct(v1, v2);
         if(cp.z < 0)
         {
             //check if the lines intersect
-            if(!checkIntersection(pointList[0], pointList[1], pointList[1], pointList[2]))
+            if(!checkIntersection(fp, mp, mp, ep))
             {
                 //add triangle to triangle list
-                triangleList[ti] = (triangle){.p1 = pointList[0], .p2 = pointList[1], .p3 = pointList[2]};
+                triangleList[ti] = (triangle){.v1 = fp, .v2 = mp, .v3 = ep, .area = 0};
                 ti++;
 
                 //remove the midpoint
-                pointList[pi+1] = NULL;
+                //pointList[pi+1] = NULL;
+				vertCount--;
+
+				//print all points in array
+				for(int i = 0; i < verticesCount; i++)
+				{
+					printf("%d : point (%d, %d) \n", i, pointList[i].x, pointList[i].y);
+				}
+	
                 //move up all the points that aren't null
-                for(int i = pi+1; i < verticesCount-1; i++)
+                for(int i = pi+1; i < vertCount; i++)
                 {
                     pointList[i] = pointList[i+1];
                 }
+
+				//print all points in array
+				for(int i = 0; i < verticesCount; i++)
+				{
+					printf("%d : point (%d, %d) \n", i, pointList[i].x, pointList[i].y);
+				}
+
+				printf("fire 1 : vertCount: %d  ;   ti: %d \n", vertCount, ti);
+
+				//return to first 3 points
+				pi = 0;
             }
         }
         else if(cp.z == 0)
         {
             //remove the midpoint
-            pointList[pi+1] = NULL;
+            //pointList[pi+1] = NULL;
+			vertCount--;
+			printf("fire 2 : vertCount: %d \n", vertCount);
+
             //move up all points that aren't null
-            for(int i = pi+1; i < verticesCount-1; i++)
+            for(int i = pi+1; i < vertCount; i++)
             {
                 pointList[i] = pointList[i+1];
             }
         }
         else
         {
-            //move to the next 3 points 
+            //move to the next set of 3 points 
             pi++;
-            fp = pointList[pi];
-            mp = pointList[pi+1];
-            ep = pointList[pi+2];
+			printf("fire 3 : pi : %d \n", pi);
         }
-    }   
+    }
+
+	//Add last 3 vertices
+	triangleList[ti] = (triangle){.v1 = pointList[0], .v2 = pointList[1], .v3 = pointList[2], .area = 0};
+	ti++;
+
+	//draw the list of triangles if drawFlag is set
+	if(drawFlag)
+	{
+		printf("ti : %d \n", ti);
+		for(int i = 0; i < ti; i++)
+		{
+			printf("triangle %d : (%d, %d) ; (%d, %d) ; (%d, %d) \n", i, triangleList[i].v1.x, triangleList[i].v1.y, 
+				triangleList[i].v2.x, triangleList[i].v2.y, triangleList[i].v3.x, triangleList[i].v3.y);
+		}
+
+		glClear ( GL_COLOR_BUFFER_BIT );
+
+		glBegin ( GL_POLYGON );
+			for(int i = 0; i < ti; i++)
+			{
+				glVertex2i ( triangleList[i].v1.x, triangleList[i].v1.y );
+				printf("point (%d, %d)   ", triangleList[i].v1.x, triangleList[i].v1.y);
+
+				glVertex2i ( triangleList[i].v2.x, triangleList[i].v2.y );	
+				printf("point (%d, %d)   ", triangleList[i].v2.x, triangleList[i].v2.y);
+		
+        		glVertex2i ( triangleList[i].v3.x, triangleList[i].v3.y );		
+				printf("point (%d, %d) \n", triangleList[i].v3.x, triangleList[i].v3.y);
+			}
+		glEnd();
+	
+		glFlush();
+	}   
 }
 
 bool checkIntersection(point p1, point p2, point p3, point p4)
@@ -388,7 +445,7 @@ bool checkIntersection(point p1, point p2, point p3, point p4)
 
 int dotProduct(vector v1, vector v2)
 {
-i	int dp;
+	int dp;
 	dp = (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z);
 
 	return dp;
