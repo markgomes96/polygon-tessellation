@@ -36,7 +36,7 @@ typedef struct triangle
 	point v2;
 	point v3;
 	float area;
-}
+} triangle;
 
 void push(point *startPoint, point input);
 void freeVerticesMemory(point *startPoint);
@@ -167,11 +167,10 @@ void drawPolygon( void )
 
 void drawPolygonTriangle(triangle t)
 {
-	glClear ( GL_COLOR_BUFFER_BIT );
-	
 	glBegin ( GL_POLYGON );
 		glVertex2i ( t.v1.x, t.v1.y );
-		//Would that just draw last triangle I sent, mabye use linked list of triangles
+		glVertex2i ( t.v2.x, t.v2.y );
+        glVertex2i ( t.v3.x, t.v2.y );
 	glEnd();
 	
 	glFlush();
@@ -280,7 +279,70 @@ void keyboard( unsigned char key, int x, int y )
 
 void tesselatePolygon( void )
 {
-	
+	triangle triangleList[verticesCount-1];
+    int ti = 0;
+    int vertCount = verticesCount;
+    int pi = 0;
+
+    //Move all points over to an array
+    points pointList[verticesCount];
+    point *current = startPoint;
+    int index = 0;
+    while(current -> next != NULL)
+    {
+        pointList[index] = *current;
+        index++;
+        current = current -> next;
+    }
+
+    //Earclipping algorithm
+    point fp = pointList[pi]; 
+    point mp = pointList[pi+1]; 
+    point ep = pointList[pi+2];
+    vector v1, v2, cp;
+    while(vertCount > 3)
+    {
+        //check the cross product to see if points go counter clockwise
+        v1 = (vector){.x = (pointList[0].x - pointList[1].x), .y = (pointList[0].y - pointList[1].y), .z = 0};
+        v2 = (vector){.x = (pointList[2].x - pointList[1].x), .y = (pointList[2].y - pointList[1].y), .z = 0};
+        cp = crossProduct(v1, v2);
+        if(cp.z < 0)
+        {
+            //check if the lines intersect
+            if(!checkIntersection(pointList[0], pointList[1], pointList[1], pointList[2]))
+            {
+                //add triangle to triangle list
+                triangleList[ti] = (triangle){.p1 = pointList[0], .p2 = pointList[1], .p3 = pointList[2]};
+                ti++;
+
+                //remove the midpoint
+                pointList[pi+1] = NULL;
+                //move up all the points that aren't null
+                for(int i = pi+1; i < verticesCount-1; i++)
+                {
+                    pointList[i] = pointList[i+1];
+                }
+            }
+        }
+        else if(cp.z == 0)
+        {
+            //remove the midpoint
+            pointList[pi+1] = NULL;
+            //move up all points that aren't null
+            for(int i = pi+1; i < verticesCount-1; i++)
+            {
+                pointList[i] = pointList[i+1];
+            }
+        }
+        else
+        {
+            //move to the next 3 points 
+            pi++;
+            fp = pointList[pi];
+            mp = pointList[pi+1];
+            ep = pointList[pi+2];
+        }
+    }   
 }
 
 bool checkIntersection(point p1, point p2, point p3, point p4)
@@ -326,7 +388,7 @@ bool checkIntersection(point p1, point p2, point p3, point p4)
 
 int dotProduct(vector v1, vector v2)
 {
-	int dp;
+i	int dp;
 	dp = (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z);
 
 	return dp;
@@ -362,16 +424,6 @@ void push(point *startPoint, point input)
 	current = current -> next;
 	//Print out inputed point
 	printf("( %i , %i ) \n", current -> x, current -> y);
-
-	//Print out updated list of vertices
-	/*
-	current = startPoint;
-	while (current -> next != NULL)
-	{
-		printf("( %i , %i ) \n", current -> next -> x, current -> next -> y);
-		current = current -> next;
-	}
-	*/
 }
 
 // Insert an point from verticies
@@ -385,9 +437,6 @@ void insert(point *firstPoint, point *secondPoint, point input)
 
     firstPoint -> next = newPoint;        //Connect first point to new point
 }
-
-// Delete a point into verticies
-
 
 // Free up all allocated memory by list of verticies
 void freeVerticesMemory(point *startPoint)
