@@ -40,6 +40,7 @@ typedef struct triangle
 
 void push(point *startPoint, point input);
 void freeVerticesMemory(point *startPoint);
+bool isSamePoint(point p1, point p2);
 bool checkIntersection(point p1, point p2, point p3, point p4);
 void tesselatePolygon(bool drawFlag);
 int dotProuct(vector v1, vector v2);
@@ -187,7 +188,7 @@ void mouse( int button, int state, int x, int y )
 			point *lastPoint = current;
 			current = startPoint -> next;
 
-			while(current -> next != NULL)			//Check if new point causes intersection
+			while(current -> next -> next != NULL)			//Check if new point causes intersection
 			{
 				if(checkIntersection(*current, *(current -> next), *lastPoint, input))
 				{
@@ -279,6 +280,8 @@ void tesselatePolygon(bool drawFlag)
 
     //Move all points over to an array
     point pointList[verticesCount];
+	point intersectPL[verticesCount+1];
+
     point *current = startPoint -> next;
     int index = 0;
     while(current -> next != NULL)
@@ -288,6 +291,17 @@ void tesselatePolygon(bool drawFlag)
         current = current -> next;
     }
 	pointList[index] = *current;
+
+	current = startPoint -> next;
+	index = 0;
+	while(current -> next != NULL)
+	{
+		intersectPL[index] = *current;
+		index++;
+		current = current -> next;
+	}
+	intersectPL[index] = *current;
+	intersectPL[index+1] = *(startPoint -> next);
 
 	//print out all points in pointlist
 	printf("Vertices count : %d \n", vertCount);
@@ -299,6 +313,7 @@ void tesselatePolygon(bool drawFlag)
     //Earclipping algorithm
     point fp, mp, ep;				//first point, midpoint, endpoint
     vector v1, v2, cp;				//vectors to calculate the crossproduct
+	bool intersectFlag;
     while(vertCount > 3)
     {
 		//Get next 3 points based on point index
@@ -312,8 +327,43 @@ void tesselatePolygon(bool drawFlag)
         cp = crossProduct(v1, v2);
         if(cp.z < 0)
         {
+			//Check if line from last point to first point intersects any other line
+			intersectFlag = false;
+			/*
+			current = startPoint -> next;
+			while(current -> next != NULL)
+			{
+				if(checkIntersection(*current, *(current -> next), ep, fp))
+				{
+					intersectFlag = true;
+					break;
+				}
+				current = current -> next;
+			}
+			*/
+			
+			for(int i = 0; i < verticesCount; i++)
+			{
+				//check if sames line is being tested
+				if((isSamePoint(ep, intersectPL[i]) || isSamePoint(ep, intersectPL[i+1])) && (isSamePoint(fp, intersectPL[i]) || isSamePoint(fp, intersectPL[i+1])))
+				{
+					printf("Two lines are the same \n");
+				}
+				else if(checkIntersection(intersectPL[i], intersectPL[i+1], ep, fp))
+				{
+					intersectFlag = true;
+					printf("intersect flag: %d \n", intersectFlag);
+					break;
+				}
+				printf("intersect flag: %d \n", intersectFlag);
+			}
+
+			printf("Final intersect flag: %d \n", intersectFlag);
+
+			//exit(0);
+
             //check if the lines intersect
-            if(!checkIntersection(fp, mp, mp, ep))
+            if(!intersectFlag)
             {
                 //add triangle to triangle list
                 triangleList[ti] = (triangle){.v1 = fp, .v2 = mp, .v3 = ep, .area = 0};
@@ -324,6 +374,7 @@ void tesselatePolygon(bool drawFlag)
 				vertCount--;
 
 				//print all points in array
+				printf("Point Array check 1\n");
 				for(int i = 0; i < verticesCount; i++)
 				{
 					printf("%d : point (%d, %d) \n", i, pointList[i].x, pointList[i].y);
@@ -334,8 +385,10 @@ void tesselatePolygon(bool drawFlag)
                 {
                     pointList[i] = pointList[i+1];
                 }
+				pointList[vertCount] = (point){.x = 0, .y = 0, .next = NULL};
 
 				//print all points in array
+				printf("Point Array check 2\n");
 				for(int i = 0; i < verticesCount; i++)
 				{
 					printf("%d : point (%d, %d) \n", i, pointList[i].x, pointList[i].y);
@@ -346,6 +399,11 @@ void tesselatePolygon(bool drawFlag)
 				//return to first 3 points
 				pi = 0;
             }
+			else
+			{
+				//move to the next set of 3 points
+				pi++;
+			}
         }
         else if(cp.z == 0)
         {
@@ -384,22 +442,30 @@ void tesselatePolygon(bool drawFlag)
 
 		glClear ( GL_COLOR_BUFFER_BIT );
 
-		glBegin ( GL_POLYGON );
-			for(int i = 0; i < ti; i++)
-			{
+		for(int i = 0; i < ti; i++)
+		{
+			glBegin ( GL_POLYGON );
 				glVertex2i ( triangleList[i].v1.x, triangleList[i].v1.y );
-				printf("point (%d, %d)   ", triangleList[i].v1.x, triangleList[i].v1.y);
+				//printf("point (%d, %d)   ", triangleList[i].v1.x, triangleList[i].v1.y);
 
 				glVertex2i ( triangleList[i].v2.x, triangleList[i].v2.y );	
-				printf("point (%d, %d)   ", triangleList[i].v2.x, triangleList[i].v2.y);
+				//printf("point (%d, %d)   ", triangleList[i].v2.x, triangleList[i].v2.y);
 		
         		glVertex2i ( triangleList[i].v3.x, triangleList[i].v3.y );		
-				printf("point (%d, %d) \n", triangleList[i].v3.x, triangleList[i].v3.y);
-			}
-		glEnd();
-	
+				//printf("point (%d, %d) \n", triangleList[i].v3.x, triangleList[i].v3.y);
+			glEnd();
+		}
+
 		glFlush();
 	}   
+}
+
+bool isSamePoint(point p1, point p2)
+{
+	if(p1.x == p2.x && p1.y == p2.y)
+		return true;
+	else
+		return false;
 }
 
 bool checkIntersection(point p1, point p2, point p3, point p4)
@@ -409,6 +475,8 @@ bool checkIntersection(point p1, point p2, point p3, point p4)
 	float tBDet = 0;
 	float tA = 0;
 	float tB = 0;
+
+	printf("point 1 : (%d, %d)	point 2 : (%d, %d)	point 3 : (%d, %d)	point 4 : (%d, %d) \n", p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y);
 
 	ADet = (float)( (p2.x - p1.x) * (-(p4.y - p3.y)) ) - ( (p2.y - p1.y) * (-(p4.x - p3.x)) );
 	if(ADet == 0)		//Check if lines are parallel
@@ -433,7 +501,7 @@ bool checkIntersection(point p1, point p2, point p3, point p4)
 	tA = (float)tADet / (float)ADet;
 	tB = (float)tBDet / (float)ADet;
 
-	if( (tA > 0 && tA < 1) && (tB > 0 && tB < 1) )
+	if( (tA >= 0 && tA <= 1) && (tB >= 0 && tB <= 1) )
 	{
 		return true;
 	}
