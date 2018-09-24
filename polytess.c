@@ -41,6 +41,7 @@ typedef struct triangle
 void push(point *startPoint, point input);
 void freeVerticesMemory(point *startPoint);
 bool isSamePoint(point p1, point p2);
+bool sharePoint(point p1, point p2);
 bool checkIntersection(point p1, point p2, point p3, point p4);
 void tesselatePolygon(bool drawFlag);
 int dotProuct(vector v1, vector v2);
@@ -186,10 +187,11 @@ void mouse( int button, int state, int x, int y )
         		current = current -> next;
     		}
 			point *lastPoint = current;
-			current = startPoint -> next;
 
+			current = startPoint -> next;
 			while(current -> next -> next != NULL)			//Check if new point causes intersection
 			{
+                //checks intersection between last point and new point 
 				if(checkIntersection(*current, *(current -> next), *lastPoint, input))
 				{
 					intersected = true;
@@ -199,6 +201,22 @@ void mouse( int button, int state, int x, int y )
 
 				current = current -> next;		//Move to next point and repeat
 			}
+
+            if(intersected = false)     //check intersection between new point and start point
+            {
+                current = startPoint -> next -> next;
+                while(current -> next != NULL)
+                {
+                    if(checkIntersection(*current, *(current -> next), input, *(startPoint -> next)))
+                    {
+                        intersected = true;
+                        printf("Intersection Detected : Point Not Accepted\n");
+                        break;
+                    }
+
+                    current = current -> next;
+                }
+            }
 
             if(!intersected)
             {
@@ -322,8 +340,8 @@ void tesselatePolygon(bool drawFlag)
 		ep = pointList[pi+2];
 
         //check the cross product to see if points go counter clockwise
-        v1 = (vector){.x = (fp.x - mp.x), .y = (fp.y - mp.y), .z = 0};
-        v2 = (vector){.x = (ep.x - mp.x), .y = (ep.y - mp.y), .z = 0};
+        v1 = (vector){.x = (mp.x - fp.x), .y = (mp.y - fp.y), .z = 0};
+        v2 = (vector){.x = (mp.x - ep.x), .y = (mp.y - ep.y), .z = 0};
         cp = crossProduct(v1, v2);
         if(cp.z < 0)
         {
@@ -345,10 +363,19 @@ void tesselatePolygon(bool drawFlag)
 			for(int i = 0; i < verticesCount; i++)
 			{
 				//check if sames line is being tested
+				/*
 				if((isSamePoint(ep, intersectPL[i]) || isSamePoint(ep, intersectPL[i+1])) && (isSamePoint(fp, intersectPL[i]) || isSamePoint(fp, intersectPL[i+1])))
 				{
 					printf("Two lines are the same \n");
 				}
+                */
+                if(sharePoint(ep, intersectPL[i]) || sharePoint(ep, intersectPL[i+1]) || sharePoint(fp, intersectPL[i]) || sharePoint(fp, intersectPL[i+1]))
+                {
+                    printf("Lines share a point");
+                }
+                
+                //***Check every line except two lines used for triangle
+
 				else if(checkIntersection(intersectPL[i], intersectPL[i+1], ep, fp))
 				{
 					intersectFlag = true;
@@ -466,6 +493,14 @@ bool isSamePoint(point p1, point p2)
 		return true;
 	else
 		return false;
+}
+
+bool sharePoint(point p1, point p2)
+{
+    if(p1.x == p2.x || p1.y == p2.y)
+        return true;
+    else
+        return false;
 }
 
 bool checkIntersection(point p1, point p2, point p3, point p4)
