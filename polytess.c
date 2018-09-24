@@ -5,6 +5,7 @@
 #include <GL/glut.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 typedef enum {false, true} bool;
 
@@ -42,9 +43,11 @@ void push(point *startPoint, point input);
 void freeVerticesMemory(point *startPoint);
 bool isSamePoint(point p1, point p2);
 bool sharePoint(point p1, point p2);
+double vectorAngle(point a1, point a2, point a3);
 bool checkIntersection(point p1, point p2, point p3, point p4);
 void tesselatePolygon(bool drawFlag);
 int dotProuct(vector v1, vector v2);
+double vectorMagnitude(vector v1);
 vector crossProduct(vector v1, vector v2);
 
 // These are defined in a global scope
@@ -369,13 +372,12 @@ void tesselatePolygon(bool drawFlag)
 					printf("Two lines are the same \n");
 				}
                 */
+
                 if(sharePoint(ep, intersectPL[i]) || sharePoint(ep, intersectPL[i+1]) || sharePoint(fp, intersectPL[i]) || sharePoint(fp, intersectPL[i+1]))
                 {
                     printf("Lines share a point");
                 }
                 
-                //***Check every line except two lines used for triangle
-
 				else if(checkIntersection(intersectPL[i], intersectPL[i+1], ep, fp))
 				{
 					intersectFlag = true;
@@ -385,6 +387,14 @@ void tesselatePolygon(bool drawFlag)
 				printf("intersect flag: %d \n", intersectFlag);
 			}
 
+            if(ep.x == intersectPL[verticesCount-2].x && ep.y == intersectPL[verticesCount-2].y && fp.x == intersectPL[0].x && fp.y == intersectPL[0].y)
+            {
+                if(compareAngle(mp, ep, fp, mp, ep, intersectPL[verticesCount-1]))      //Proposed line compared to real line
+                {
+                    intersectFlag = true;
+                }
+            }
+    
 			printf("Final intersect flag: %d \n", intersectFlag);
 
 			//exit(0);
@@ -503,6 +513,11 @@ bool sharePoint(point p1, point p2)
         return false;
 }
 
+double vectorAngle(point p1, point p2, point p3)
+{
+    //find the angle of two vectors sharing middle point
+}   
+
 bool checkIntersection(point p1, point p2, point p3, point p4)
 {
 	float ADet = 0;
@@ -552,6 +567,13 @@ int dotProduct(vector v1, vector v2)
 	dp = (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z);
 
 	return dp;
+}
+
+double vectorMagnitude(vector v1)
+{
+    double vm;
+    vm  = sqrt((v1.x * v1.x) + (v1.y * v1.y));
+    return vm;
 }
 
 vector crossProduct(vector v1, vector v2)
