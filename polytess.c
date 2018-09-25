@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
 typedef enum {false, true} bool;
 
@@ -39,7 +40,8 @@ typedef struct triangle		//stores vertexes for a triangle used for tesselation
 	double area;
 } triangle;
 
-void push(point *startPoint, point input);
+void push(point input);
+bool checkPointValid(point input, bool lastPoint);
 void freeVerticesMemory(point *startPoint);
 bool sharePoint(point p1, point p2);
 double vectorAngle(point p1, point p2, point p3);
@@ -48,6 +50,7 @@ void tesselatePolygon(bool drawFlag);
 int dotProduct(vector v1, vector v2);
 double vectorMagnitude(vector v1);
 vector crossProduct(vector v1, vector v2);
+void delay(float secs);
 
 // These are defined in a global scope
 
@@ -72,6 +75,7 @@ const float WORLD_COORDINATE_MAX_Y = 800.0;
 
 point *startPoint;			//head pointer for linked list of points
 int verticesCount = 0;		//number of vertices points accepted
+bool allPointsInputed = false;
 
 // Functions
 
@@ -92,6 +96,7 @@ void myInit(void)
 	glClearColor(1.0, 1.0, 1.0, 1.0); /* white background */
 	glColor3f(1.0, 0.0, 0.0); /* draw in red */
 	glPointSize(10.0);
+	glLineWidth(3.0);
 
 	COLORS_DEFINED = 0;
 
@@ -139,6 +144,7 @@ void drawPoint( int x, int y )
 void drawOutline( void )
 {
     glClear ( GL_COLOR_BUFFER_BIT );
+	glColor3f (1.0, 0.0, 0.0);
 
     glBegin ( GL_LINE_LOOP );
 	    point *current = startPoint -> next;
@@ -174,62 +180,33 @@ void mouse( int button, int state, int x, int y )
 { 
 	int sy = WORLD_COORDINATE_MAX_Y - y;	//converts mouse coordinates to screen coordinates
 	
+	point input = {x, sy, NULL};
+
 	if ( button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN )
     {
-		//Add point to list of vertices
-		point input = {x, sy, NULL};
-
-        bool intersected = false;
-		if(verticesCount > 2)
+		//try to add point to list of vertices
+        if(verticesCount > 2)
 		{
-			//Find end of linked list vertices
-    		point *current = startPoint;
-    		while(current -> next != NULL)
-    		{
-        		current = current -> next;
-    		}
-			point *lastPoint = current;
-
-			current = startPoint -> next;
-			while(current -> next -> next != NULL)			//Check if new point causes intersection
+			bool validPoint = false;
+			if(!allPointsInputed)
 			{
-                //checks intersection between last point and new point 
-				if(checkIntersection(*current, *(current -> next), *lastPoint, input))
-				{
-					intersected = true;
-                    printf("( %i, %i ) -- *Intersection Detected : Point Not Accepted* \n", input.x, input.y);
-					break;
-				}
-
-				current = current -> next;		//Move to next point and repeat
+            	validPoint = checkPointValid(input, false);
+			}
+			else
+			{
+				validPoint = checkPointValid(input, true);
 			}
 
-            if(intersected == false)     //check intersection between new point and start point
-            {
-                current = startPoint -> next -> next;
-                while(current -> next != NULL)
-                {
-                    if(checkIntersection(*current, *(current -> next), input, *(startPoint -> next)))
-                    {
-                        intersected = true;
-                        printf("( %i, %i ) -- *Intersection Detected : Point Not Accepted* \n", input.x, input.y);
-                        break;
-                    }
-
-                    current = current -> next;
-                }
-            }
-
-            if(!intersected)
-            {
-                push(startPoint, input);
-                verticesCount++;
-                drawPoint( x, sy );
-            }
+			if(validPoint)
+			{
+				push(input);
+				verticesCount++;
+				drawPoint( x , sy );
+			}
 		}
         else
         {
-            push(startPoint, input);
+            push(input);
             verticesCount++;
             drawPoint( x, sy );
         }
@@ -238,57 +215,106 @@ void mouse( int button, int state, int x, int y )
   	if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN )
     {
         //Display outline of the polygon
-        if(verticesCount > 1)
-        	drawOutline();
+        if(verticesCount >= 2)	
+		{
+			if(checkPointValid(input, true))
+			{
+				push(input);
+				verticesCount++;
+				drawPoint( x, sy );
+				allPointsInputed = true;		//Add last point and allow user to draw polygons
+        		drawOutline();
+			}
+		}
+		else
+		{
+			printf("Please input more points \n");
+		}
     }
 }
 
 
 void keyboard( unsigned char key, int x, int y )
 { 
-	// Draw polygon with no tesselation
-	if ( key == 'f' || key == 'F')
+	if(allPointsInputed)
 	{
-		if(verticesCount > 2)
+		// Draw polygon with no tesselation
+		if ( key == 'f' || key == 'F')
+		{
 			drawPolygon();
-		else
-			printf("Please input more points\n");
-	}
+		}
 	
-	// List out triangles used in tesselation
-	if ( key == 't' || key == 'T')
-	{
-		if(verticesCount > 2)
+		// List out triangles used in tesselation
+		if ( key == 't' || key == 'T')
+		{
 			tesselatePolygon(false);
-		else
-			printf("Please input more points\n");
-	}
+		}
 
-	// Draw polygon using tesselation
-	if ( key == 'p' || key == 'P')
-	{
-		if(verticesCount > 2)
+		// Draw polygon using tesselation
+		if ( key == 'p' || key == 'P')
+		{
 			tesselatePolygon(true);
-		else
-			printf("Please input more points\n");
-	}
+		}
 
-	// Return to initial polygon outline
-	if ( key == 'i' || key == 'I')
-	{
-		if(verticesCount > 2)
+		// Return to initial polygon outline
+		if ( key == 'i' || key == 'I')
+		{
 			drawOutline();
-		else
-			printf("Please input more points\n");
+		}
+
+		// Exit the program
+		if ( key == 'q' || key == 'Q') 
+		{
+			printf("Goodbye...\n");
+			freeVerticesMemory(startPoint);
+			exit(0);
+		}
+	}
+}
+
+bool checkPointValid(point input, bool isLastPoint)
+{
+	bool intersected = false;
+
+	//Find end of linked list vertices
+    point *current = startPoint;
+    while(current -> next != NULL)
+    {
+        current = current -> next;
+    }
+	point *lastPoint = current;
+
+	current = startPoint -> next;
+	while(current -> next -> next != NULL)			//Check if new point causes intersection
+	{
+        //checks intersection between last point and new point 
+		if(checkIntersection(*current, *(current -> next), *lastPoint, input))
+		{
+			intersected = true;
+			printf("( %i, %i ) -- *Intersection Detected : Point Not Accepted* \n", input.x, input.y);
+			break;
+		}
+
+		current = current -> next;		//Move to next point and repeat
 	}
 
-	// Exit the program
-	if ( key == 'q' || key == 'Q') 
-	{
-		printf("Goodbye...\n");
-		freeVerticesMemory(startPoint);
-		exit(0);
-	}
+    if(!intersected && isLastPoint)     //check intersection between new point and start point
+    {
+    	current = startPoint -> next -> next;
+        while(current -> next != NULL)
+        {
+        	if(checkIntersection(*current, *(current -> next), input, *(startPoint -> next)))
+            {
+            	intersected = true;
+                printf("( %i, %i ) -- *Intersection Detected : Point Not Accepted* \n", input.x, input.y);
+                break;
+            }
+
+            current = current -> next;
+        }
+    }
+	
+	return !intersected;
 }
 
 void tesselatePolygon(bool drawFlag)
@@ -419,11 +445,11 @@ void tesselatePolygon(bool drawFlag)
 	triangleList[ti] = (triangle){.v1 = pointList[0], .v2 = pointList[1], .v3 = pointList[2], .area = 0};
 	ti++;
 
-	//either draw the tesselated polygon or list out the triangle information
+	//either draw the tesselated filled polygon or draw triangle outlines and list out the triangle information
+	glClear ( GL_COLOR_BUFFER_BIT );
 	if(drawFlag)
 	{	
-		glClear ( GL_COLOR_BUFFER_BIT );
-
+		glColor3f(0.0, 0.0, 1.0);	//change color to blue
 		for(int i = 0; i < ti; i++)
 		{
 			glBegin ( GL_POLYGON );
@@ -437,17 +463,38 @@ void tesselatePolygon(bool drawFlag)
 	}
 	else	//list out tesslated triangle information
 	{
-		printf("ti : %d \n", ti);
+		glColor3f(0.0, 1.0, 0.0);	//change color to green
+		printf("Number of Triangles : %d \n", ti);
 		for(int i = 0; i < ti; i++)
 		{
+			//calculate the area
 			vector v1 = (vector){.x = (triangleList[i].v2.x - triangleList[i].v1.x), .y = (triangleList[i].v2.y - triangleList[i].v1.y), .z = 0};
 			vector v2 = (vector){.x = (triangleList[i].v2.x - triangleList[i].v3.x), .y = (triangleList[i].v2.y - triangleList[i].v2.y), .z = 0};
 			triangleList[i].area = ( (double)(crossProduct(v1, v2).z) / 2.0 );
 
+			//print the triangle information
 			printf("triangle %d : (%d, %d) ; (%d, %d) ; (%d, %d)	--	 Area : %3f \n", (i+1), triangleList[i].v1.x, triangleList[i].v1.y, 
 					triangleList[i].v2.x, triangleList[i].v2.y, triangleList[i].v3.x, triangleList[i].v3.y, triangleList[i].area);
+
+			//display triangle outline on screen
+			glBegin ( GL_LINE_LOOP );
+				glVertex2i ( triangleList[i].v1.x, triangleList[i].v1.y );
+				glVertex2i ( triangleList[i].v2.x, triangleList[i].v2.y );
+				glVertex2i ( triangleList[i].v3.x, triangleList[i].v3.y );
+			glEnd();
+
+			glFlush();
+			delay(0.5);		//draws triangles with delay for cool effect
 		}
 	}
+}
+
+void delay(float secs)
+{
+	clock_t endTime = clock() + (CLOCKS_PER_SEC * secs);
+	clock_t currentTime = 0;
+
+	while(clock() < endTime) {}
 }
 
 bool sharePoint(point p1, point p2)		//determines if two points are the same
@@ -535,7 +582,7 @@ vector crossProduct(vector v1, vector v2)
 }
 
 //Add a point to end of vertices
-void push(point *startPoint, point input)
+void push(point input)
 {
 	//Find end of the linked list vertices
 	point *current = startPoint;
