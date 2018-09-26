@@ -1,6 +1,8 @@
 // Base code provided by Dr. Pounds
 // Developed by Mark Gomes
-// 09/05/18
+// This program handles polygon creation and tesselation
+// It will accept CCW and CW drawn polygons
+// 09/26/18
 
 #include <GL/glut.h>
 #include <stdio.h>
@@ -51,6 +53,7 @@ int dotProduct(vector v1, vector v2);
 double vectorMagnitude(vector v1);
 vector crossProduct(vector v1, vector v2);
 void delay(float secs);
+int sign(int num);
 
 // These are defined in a global scope
 
@@ -125,7 +128,7 @@ void display( void )
     glFlush(); 						/* clear buffers */
 }
 
-void drawPoint( int x, int y )
+void drawPoint( int x, int y )		//Draw point onto the screen
 {
     typedef GLfloat point[2];     
     point p;
@@ -141,10 +144,10 @@ void drawPoint( int x, int y )
     glFlush();
 }
 
-void drawOutline( void )
+void drawOutline( void )		//Draw outline of polygon with line loops
 {
     glClear ( GL_COLOR_BUFFER_BIT );
-	glColor3f (1.0, 0.0, 0.0);
+	glColor3f (1.0, 0.0, 0.0);			//change color to red
 
     glBegin ( GL_LINE_LOOP );
 	    point *current = startPoint -> next;
@@ -159,9 +162,10 @@ void drawOutline( void )
     glFlush();
 }
 
-void drawPolygon( void )
+void drawPolygon( void )		//Draw filled polygon without tesselation
 {
 	glClear ( GL_COLOR_BUFFER_BIT );
+	glColor3f (1.0, 0.0, 1.0);			//change color to purple
 	
 	glBegin ( GL_POLYGON );
 		point *current = startPoint -> next;
@@ -328,7 +332,7 @@ void tesselatePolygon(bool drawFlag)
     point pointList[verticesCount];
 	point intersectPL[verticesCount+1];
 
-    point *current = startPoint -> next;
+    point *current = startPoint -> next;	//create array of all the points to implement ear clipping algorithm
     int index = 0;
     while(current -> next != NULL)
     {
@@ -338,7 +342,7 @@ void tesselatePolygon(bool drawFlag)
     }
 	pointList[index] = *current;
 
-	current = startPoint -> next;
+	current = startPoint -> next;			//create array with all points and 1st point at end to check intersections
 	index = 0;
 	while(current -> next != NULL)
 	{
@@ -352,7 +356,8 @@ void tesselatePolygon(bool drawFlag)
     //Earclipping algorithm
     point fp, mp, ep;				//first point, midpoint, endpoint
     vector v1, v2, cp;				//vectors to calculate the crossproduct
-	bool intersectFlag;
+	bool intersectFlag = false;
+	int direction = 0;			//get direction of first 3 points
     while(vertCount > 3)
     {
 		//Get next 3 points based on point index
@@ -364,7 +369,17 @@ void tesselatePolygon(bool drawFlag)
         v1 = (vector){.x = (mp.x - fp.x), .y = (mp.y - fp.y), .z = 0};
         v2 = (vector){.x = (mp.x - ep.x), .y = (mp.y - ep.y), .z = 0};
         cp = crossProduct(v1, v2);
-        if(cp.z < 0)
+		
+		/*
+ 		*Check start direction first, store as 1 or -1
+ 		*/
+		if(direction == 0)
+		{
+			direction = sign(cp.z);
+		}
+
+		//check if current 3 points are going in initial polygon direction
+        if(sign(cp.z) == direction)
         {
 			//flag to check if line cuases an intersections
 			intersectFlag = false;
@@ -386,7 +401,7 @@ void tesselatePolygon(bool drawFlag)
 					v1 = (vector){.x = (ep.x - mp.x), .y = (ep.y - mp.y), .z = 0};
 					v2 = (vector){.x = (ep.x - pointList[pi+3].x), .y = (ep.y - pointList[pi+3].y), .z = 0};
 
-					if(crossProduct(v1, v2).z < 0)			//check if next two lines are CCW
+					if(sign(crossProduct(v1, v2).z) == direction)			//check if next two lines are CCW
 					{
 						if(vectorAngle(mp, ep, fp) > vectorAngle(mp, ep, pointList[pi+3]))		//check if line is an interior line
 						{
@@ -469,11 +484,11 @@ void tesselatePolygon(bool drawFlag)
 		{
 			//calculate the area
 			vector v1 = (vector){.x = (triangleList[i].v2.x - triangleList[i].v1.x), .y = (triangleList[i].v2.y - triangleList[i].v1.y), .z = 0};
-			vector v2 = (vector){.x = (triangleList[i].v2.x - triangleList[i].v3.x), .y = (triangleList[i].v2.y - triangleList[i].v2.y), .z = 0};
-			triangleList[i].area = ( (double)(crossProduct(v1, v2).z) / 2.0 );
+			vector v2 = (vector){.x = (triangleList[i].v2.x - triangleList[i].v3.x), .y = (triangleList[i].v2.y - triangleList[i].v3.y), .z = 0};
+			triangleList[i].area = ( abs( (double)(crossProduct(v1, v2).z) / 2.0 ) );
 
 			//print the triangle information
-			printf("triangle %d : (%d, %d) ; (%d, %d) ; (%d, %d)	--	 Area : %3f \n", (i+1), triangleList[i].v1.x, triangleList[i].v1.y, 
+			printf("triangle %d : (%d, %d) ; (%d, %d) ; (%d, %d)	--	 Area : %.2f \n", (i+1), triangleList[i].v1.x, triangleList[i].v1.y, 
 					triangleList[i].v2.x, triangleList[i].v2.y, triangleList[i].v3.x, triangleList[i].v3.y, triangleList[i].area);
 
 			//display triangle outline on screen
@@ -489,12 +504,22 @@ void tesselatePolygon(bool drawFlag)
 	}
 }
 
-void delay(float secs)
+void delay(float secs)		//delays program by certain amount of time
 {
 	clock_t endTime = clock() + (CLOCKS_PER_SEC * secs);
 	clock_t currentTime = 0;
 
 	while(clock() < endTime) {}
+}
+
+int sign(int num)
+{
+	if(num > 0)
+		return 1;
+	else if (num < 0)
+		return -1;
+	else
+		return 0;
 }
 
 bool sharePoint(point p1, point p2)		//determines if two points are the same

@@ -1,6 +1,7 @@
-#This sample Makefile allows you to make an OpenGL application
+#Mark Gomes
+#Makefile for programming assignment 1
+#This Makefile allows you to make an OpenGL application
 #   whose source is exactly one .c or .cc file.
-#
 #
 # To use this Makefile, you type:
 #
@@ -22,4 +23,3 @@ LDLIBS =  -lglut -lGL -lGLU -lX11 -lm
 
 .cpp:
 	$(C++)  -O $@.cpp -g $(INCDIRS) $(LIBDIRS) $(LDLIBS) -o $@
-
