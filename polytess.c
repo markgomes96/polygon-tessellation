@@ -324,22 +324,22 @@ bool checkPointValid(point input, bool isLastPoint)
 void tesselatePolygon(bool drawFlag)
 {
 	triangle triangleList[verticesCount-1];
-    int ti = 0;
-    int vertCount = verticesCount;
-    int pi = 0;
+	int ti = 0;
+	int vertCount = verticesCount;
+	int pi = 0;
 
-    //Move all points over to an array
-    point pointList[verticesCount];
+	//Move all points over to an array
+	point pointList[verticesCount];
 	point intersectPL[verticesCount+1];
 
-    point *current = startPoint -> next;	//create array of all the points to implement ear clipping algorithm
-    int index = 0;
-    while(current -> next != NULL)
-    {
-        pointList[index] = *current;
-        index++;
-        current = current -> next;
-    }
+	point *current = startPoint -> next;	//create array of all the points to implement ear clipping algorithm
+	int index = 0;
+	while(current -> next != NULL)
+	{
+		pointList[index] = *current;
+		index++;
+		current = current -> next;
+	}
 	pointList[index] = *current;
 
 	current = startPoint -> next;			//create array with all points and 1st point at end to check intersections
@@ -353,22 +353,22 @@ void tesselatePolygon(bool drawFlag)
 	intersectPL[index] = *current;
 	intersectPL[index+1] = *(startPoint -> next);
 
-    //Earclipping algorithm
-    point fp, mp, ep;				//first point, midpoint, endpoint
-    vector v1, v2, cp;				//vectors to calculate the crossproduct
+	//Earclipping algorithm
+	point fp, mp, ep;				//first point, midpoint, endpoint
+	vector v1, v2, cp;				//vectors to calculate the crossproduct
 	bool intersectFlag = false;
 	int direction = 0;			//get direction of first 3 points
-    while(vertCount > 3)
-    {
+	while(vertCount > 3)
+	{
 		//Get next 3 points based on point index
 		fp = pointList[pi];
 		mp = pointList[pi+1];
 		ep = pointList[pi+2];
 
-        //check the cross product to see if points go counter clockwise
-        v1 = (vector){.x = (mp.x - fp.x), .y = (mp.y - fp.y), .z = 0};
-        v2 = (vector){.x = (mp.x - ep.x), .y = (mp.y - ep.y), .z = 0};
-        cp = crossProduct(v1, v2);
+        	//check the cross product to see if points go counter clockwise
+        	v1 = (vector){.x = (mp.x - fp.x), .y = (mp.y - fp.y), .z = 0};
+        	v2 = (vector){.x = (mp.x - ep.x), .y = (mp.y - ep.y), .z = 0};
+       		cp = crossProduct(v1, v2);
 		
 		/*
  		*Check start direction first, store as 1 or -1
@@ -379,82 +379,90 @@ void tesselatePolygon(bool drawFlag)
 		}
 
 		//check if current 3 points are going in initial polygon direction
-        if(sign(cp.z) == direction)
-        {
+        	if(sign(cp.z) == direction)
+        	{
 			//flag to check if line cuases an intersections
 			intersectFlag = false;
 			
 			for(int i = 0; i < verticesCount; i++)
 			{
 				//makes sure lines with same points aren't tested for intersection
-                if(sharePoint(ep, intersectPL[i]) || sharePoint(ep, intersectPL[i+1]) || sharePoint(fp, intersectPL[i]) || sharePoint(fp, intersectPL[i+1]))
-                {
-             		//lines share a point
-                }
+                		if(sharePoint(ep, intersectPL[i]) || sharePoint(ep, intersectPL[i+1]) || sharePoint(fp, intersectPL[i]) || sharePoint(fp, intersectPL[i+1]))
+               			{
+             				//lines share a point
+             				printf("share point \n");
+                		}
 				else if(checkIntersection(intersectPL[i], intersectPL[i+1], ep, fp))	//checks if interior line intersects anterior lines
 				{
+					printf("intersect anterior line \n");
 					intersectFlag = true;
 					break;
 				}
-				else
-				{
-					v1 = (vector){.x = (ep.x - mp.x), .y = (ep.y - mp.y), .z = 0};
-					v2 = (vector){.x = (ep.x - pointList[pi+3].x), .y = (ep.y - pointList[pi+3].y), .z = 0};
+			}
+	
+			if(!intersectFlag)		//check if interior angle is smaller than anterior angle
+			{
+				v1 = (vector){.x = (ep.x - mp.x), .y = (ep.y - mp.y), .z = 0};
+				v2 = (vector){.x = (ep.x - pointList[pi+3].x), .y = (ep.y - pointList[pi+3].y), .z = 0};
 
-					if(sign(crossProduct(v1, v2).z) == direction)			//check if next two lines are CCW
+				printf("fire1 \n");
+
+				if(sign(crossProduct(v1, v2).z) == direction)			//check if next two lines are CCW
+				{
+					printf("inner triangle : %1f		outer triangle : %1f", vectorAngle(mp, ep, fp), vectorAngle(mp, ep, pointList[pi+3]));
+
+					if(vectorAngle(mp, ep, fp) > vectorAngle(mp, ep, intersectPL[pi+3]))		//check if line is an interior line
 					{
-						if(vectorAngle(mp, ep, fp) > vectorAngle(mp, ep, pointList[pi+3]))		//check if line is an interior line
-						{
-							intersectFlag = true;
-							break;
-						}
+						intersectFlag = true;
 					}
 				}
 			}
 
-            //check if the lines intersect
-            if(!intersectFlag)
-            {
-                //add triangle to triangle list
-                triangleList[ti] = (triangle){.v1 = fp, .v2 = mp, .v3 = ep, .area = 0};
-                ti++;
+			printf("Intersected : %s \n", intersectFlag ? "true" : "false");
+		
+			//check if the lines intersect
+			if(!intersectFlag)
+			{
+				//add triangle to triangle list
+                		triangleList[ti] = (triangle){.v1 = fp, .v2 = mp, .v3 = ep, .area = 0};
+                		ti++;
 
-                //remove the midpoint
+                		//remove the midpoint
 				vertCount--;
 	
-                //move up all the points that aren't null
-                for(int i = pi+1; i < vertCount; i++)
-                {
-                    pointList[i] = pointList[i+1];
-                }
+                		//move up all the points that aren't null
+                		for(int i = pi+1; i < vertCount; i++)
+                		{
+                    			pointList[i] = pointList[i+1];
+                		}
 				pointList[vertCount] = (point){.x = 0, .y = 0, .next = NULL};
 
 				//return to first 3 points
 				pi = 0;
-            }
+			}
 			else
 			{
 				//move to the next set of 3 points
 				pi++;
 			}
-        }
-        else if(cp.z == 0)
-        {
-            //remove the midpoint
+        	}
+        	else if(cp.z == 0)
+        	{
+			//remove the midpoint
 			vertCount--;
 
-            //move up all points that aren't null
-            for(int i = pi+1; i < vertCount; i++)
-            {
-                pointList[i] = pointList[i+1];
-            }
-        }
-        else
-        {
-            //move to the next set of 3 points 
-            pi++;
-        }
-    }
+			//move up all points that aren't null
+			for(int i = pi+1; i < vertCount; i++)
+			{
+				pointList[i] = pointList[i+1];
+			}
+        	}
+        	else
+        	{
+            		//move to the next set of 3 points 
+            		pi++;
+        	}
+	}
 
 	//Add last 3 vertices
 	triangleList[ti] = (triangle){.v1 = pointList[0], .v2 = pointList[1], .v3 = pointList[2], .area = 0};
@@ -499,7 +507,7 @@ void tesselatePolygon(bool drawFlag)
 			glEnd();
 
 			glFlush();
-			delay(0.5);		//draws triangles with delay for cool effect
+			delay(0.3);		//draws triangles with delay for cool effect
 		}
 	}
 }
