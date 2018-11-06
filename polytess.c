@@ -46,11 +46,11 @@ void push(point input);
 bool checkPointValid(point input, bool lastPoint);
 void freeVerticesMemory(point *startPoint);
 bool sharePoint(point p1, point p2);
-double vectorAngle(point p1, point p2, point p3);
+float vectorAngle(point p1, point p2, point p3);
 bool checkIntersection(point p1, point p2, point p3, point p4);
 void tesselatePolygon(bool drawFlag);
-int dotProduct(vector v1, vector v2);
-double vectorMagnitude(vector v1);
+float dotProduct(vector v1, vector v2);
+float vectorMagnitude(vector v1);
 vector crossProduct(vector v1, vector v2);
 void delay(float secs);
 int sign(int num);
@@ -357,7 +357,6 @@ void tesselatePolygon(bool drawFlag)
 	point fp, mp, ep;				//first point, midpoint, endpoint
 	vector v1, v2, cp;				//vectors to calculate the crossproduct
 	bool intersectFlag = false;
-	int direction = 0;			//get direction of first 3 points
 	while(vertCount > 3)
 	{
 		//Get next 3 points based on point index
@@ -365,22 +364,18 @@ void tesselatePolygon(bool drawFlag)
 		mp = pointList[pi+1];
 		ep = pointList[pi+2];
 
+		printf("\n points : %d , %d , %d \n", pi, pi+1, pi+2);
+
         	//check the cross product to see if points go counter clockwise
-        	v1 = (vector){.x = (mp.x - fp.x), .y = (mp.y - fp.y), .z = 0};
-        	v2 = (vector){.x = (mp.x - ep.x), .y = (mp.y - ep.y), .z = 0};
+        	v1 = (vector){.x = (fp.x - mp.x), .y = (fp.y - mp.y), .z = 0};
+        	v2 = (vector){.x = (ep.x - mp.x), .y = (ep.y - mp.y), .z = 0};
        		cp = crossProduct(v1, v2);
-		
-		/*
- 		*Check start direction first, store as 1 or -1
- 		*/
-		if(direction == 0)
-		{
-			direction = sign(cp.z);
-		}
 
 		//check if current 3 points are going in initial polygon direction
-        	if(sign(cp.z) == direction)
+        	if(cp.z < 0)
         	{
+			printf("*Points going CCW* \n");
+
 			//flag to check if line cuases an intersections
 			intersectFlag = false;
 			
@@ -390,39 +385,42 @@ void tesselatePolygon(bool drawFlag)
                 		if(sharePoint(ep, intersectPL[i]) || sharePoint(ep, intersectPL[i+1]) || sharePoint(fp, intersectPL[i]) || sharePoint(fp, intersectPL[i+1]))
                			{
              				//lines share a point
-             				printf("share point \n");
                 		}
 				else if(checkIntersection(intersectPL[i], intersectPL[i+1], ep, fp))	//checks if interior line intersects anterior lines
 				{
-					printf("intersect anterior line \n");
+					//printf("intersect anterior line \n");
 					intersectFlag = true;
+					printf("Intersect by lines");
 					break;
 				}
 			}
 	
 			if(!intersectFlag)		//check if interior angle is smaller than anterior angle
 			{
-				v1 = (vector){.x = (ep.x - mp.x), .y = (ep.y - mp.y), .z = 0};
-				v2 = (vector){.x = (ep.x - pointList[pi+3].x), .y = (ep.y - pointList[pi+3].y), .z = 0};
+				v1 = (vector){.x = (mp.x - ep.x), .y = (mp.y - ep.y), .z = 0};
+				v2 = (vector){.x = (pointList[pi+3].x - ep.x), .y = (pointList[pi+3].y - ep.y), .z = 0};
 
-				printf("fire1 \n");
+				//printf("fire1 \n");
 
-				if(sign(crossProduct(v1, v2).z) == direction)			//check if next two lines are CCW
+				if(crossProduct(v1, v2).z < 0)			//check if next two lines are CCW
 				{
-					printf("inner triangle : %1f		outer triangle : %1f", vectorAngle(mp, ep, fp), vectorAngle(mp, ep, pointList[pi+3]));
+					//printf("inner triangle : %1f		outer triangle : %1f", vectorAngle(mp, ep, fp), vectorAngle(mp, ep, pointList[pi+3]));
 
-					if(vectorAngle(mp, ep, fp) > vectorAngle(mp, ep, intersectPL[pi+3]))		//check if line is an interior line
+					if(vectorAngle(mp, ep, fp) > vectorAngle(mp, ep, pointList[pi+3]))		//check if line is an interior line
 					{
 						intersectFlag = true;
+						printf("Intersect by angle");
 					}
 				}
 			}
 
-			printf("Intersected : %s \n", intersectFlag ? "true" : "false");
+			//printf("Intersected : %s \n", intersectFlag ? "true" : "false");
 		
 			//check if the lines intersect
 			if(!intersectFlag)
 			{
+				printf("**No Intersection Detected** \n");
+
 				//add triangle to triangle list
                 		triangleList[ti] = (triangle){.v1 = fp, .v2 = mp, .v3 = ep, .area = 0};
                 		ti++;
@@ -442,12 +440,16 @@ void tesselatePolygon(bool drawFlag)
 			}
 			else
 			{
+				printf("**Intersection Detected** \n");
+
 				//move to the next set of 3 points
 				pi++;
 			}
         	}
         	else if(cp.z == 0)
         	{
+			printf("*Points are Colinear* \n");
+			
 			//remove the midpoint
 			vertCount--;
 
@@ -456,9 +458,13 @@ void tesselatePolygon(bool drawFlag)
 			{
 				pointList[i] = pointList[i+1];
 			}
+
+			pi = 0;
         	}
         	else
         	{
+			printf("*Points going CW* \n");
+			
             		//move to the next set of 3 points 
             		pi++;
         	}
@@ -469,9 +475,10 @@ void tesselatePolygon(bool drawFlag)
 	ti++;
 
 	//either draw the tesselated filled polygon or draw triangle outlines and list out the triangle information
-	glClear ( GL_COLOR_BUFFER_BIT );
+	//glClear ( GL_COLOR_BUFFER_BIT );
 	if(drawFlag)
 	{	
+		glClear ( GL_COLOR_BUFFER_BIT );
 		glColor3f(0.0, 0.0, 1.0);	//change color to blue
 		for(int i = 0; i < ti; i++)
 		{
@@ -487,9 +494,10 @@ void tesselatePolygon(bool drawFlag)
 	else	//list out tesslated triangle information
 	{
 		glColor3f(0.0, 1.0, 0.0);	//change color to green
-		printf("Number of Triangles : %d \n", ti);
+		//printf("Number of Triangles : %d \n", ti);
 		for(int i = 0; i < ti; i++)
 		{
+			/*
 			//calculate the area
 			vector v1 = (vector){.x = (triangleList[i].v2.x - triangleList[i].v1.x), .y = (triangleList[i].v2.y - triangleList[i].v1.y), .z = 0};
 			vector v2 = (vector){.x = (triangleList[i].v2.x - triangleList[i].v3.x), .y = (triangleList[i].v2.y - triangleList[i].v3.y), .z = 0};
@@ -498,6 +506,7 @@ void tesselatePolygon(bool drawFlag)
 			//print the triangle information
 			printf("triangle %d : (%d, %d) ; (%d, %d) ; (%d, %d)	--	 Area : %.2f \n", (i+1), triangleList[i].v1.x, triangleList[i].v1.y, 
 					triangleList[i].v2.x, triangleList[i].v2.y, triangleList[i].v3.x, triangleList[i].v3.y, triangleList[i].area);
+			*/
 
 			//display triangle outline on screen
 			glBegin ( GL_LINE_LOOP );
@@ -538,17 +547,18 @@ bool sharePoint(point p1, point p2)		//determines if two points are the same
         return false;
 }
 
-double vectorAngle(point fp, point mp, point ep)
+float vectorAngle(point fp, point mp, point ep)		//***Check if it works***//
 {
-    //find the angle of two vectors sharing middle point
-	vector v1 = (vector){.x = (mp.x - fp.x), .y = (mp.y - fp.y), .z = 0};
-	vector v2 = (vector){.x = (mp.x - ep.x), .y = (mp.y - ep.y), .z = 0};
+	//find the angle of two vectors sharing middle point
+	vector v1 = (vector){.x = (fp.x - mp.x), .y = (fp.y - mp.y), .z = 0};
+	vector v2 = (vector){.x = (ep.x - mp.x), .y = (ep.y - mp.y), .z = 0};
 
-	double va = acos( ((double)(dotProduct(v1, v2))) / (vectorMagnitude(v1) * vectorMagnitude(v2)) );
+	float va = acos( (double)dotProduct(v1, v2) / ( vectorMagnitude(v1) * vectorMagnitude(v2) ) );
+	va = (va * 180) / M_PI;
 	return va;
 }   
 
-bool checkIntersection(point p1, point p2, point p3, point p4)
+bool checkIntersection(point p1, point p2, point p3, point p4)		//***Check if it works***//
 {
 	float ADet = 0;
 	float tADet = 0;
@@ -589,18 +599,18 @@ bool checkIntersection(point p1, point p2, point p3, point p4)
 	}
 }
 
-int dotProduct(vector v1, vector v2)
+float dotProduct(vector v1, vector v2)
 {
-	int dp;
+	float dp;
 	dp = (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z);
 
 	return dp;
 }
 
-double vectorMagnitude(vector v1)
+float vectorMagnitude(vector v1)
 {
-    double vm;
-    vm  = sqrt((v1.x * v1.x) + (v1.y * v1.y));
+    float vm;
+    vm  = sqrt((v1.x * v1.x) + (v1.y * v1.y) + (v1.z * v1.z));
     return vm;
 }
 
